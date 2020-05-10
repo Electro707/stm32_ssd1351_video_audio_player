@@ -1,0 +1,5 @@
+stm32f1xx_ll_tim.h:1007:22:LL_TIM_EnableCounter	16	static
+stm32f1xx_ll_tim.h:1287:22:LL_TIM_SetPrescaler	16	static
+stm32f1xx_ll_tim.h:1312:22:LL_TIM_SetAutoReload	16	static
+delay.c:3:6:initDelay	8	static
+delay.c:15:6:delayMs	16	static

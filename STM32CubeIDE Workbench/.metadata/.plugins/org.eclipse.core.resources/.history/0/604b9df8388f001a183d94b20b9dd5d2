@@ -1,0 +1,271 @@
+/*-----------------------------------------------------------------------*/
+/* Low level disk I/O module skeleton for FatFs     (C)ChaN, 2016        */
+/*-----------------------------------------------------------------------*/
+/* If a working storage control module is available, it should be        */
+/* attached to the FatFs via a glue function rather than modifying it.   */
+/* This is an example of glue functions to attach various exsisting      */
+/* storage control modules to the FatFs module with a defined API.       */
+/*-----------------------------------------------------------------------*/
+
+#include "ff.h"			/* Obtains integer types */
+#include "diskio.h"		/* Declarations of disk functions */
+#include "main.h"
+
+volatile uint8_t returneddata[20];
+volatile uint8_t crcvalue = 0;
+
+//#define SS_HIGH SDCARD_CS_GPIO_Port->ODR |= (SDCARD_CS_Pin);
+//#define	SS_LOW SDCARD_CS_GPIO_Port->ODR &= ~(SDCARD_CS_Pin);
+#define SS_HIGH LL_GPIO_SetOutputPin(SDCARD_CS_GPIO_Port, SDCARD_CS_Pin);
+#define SS_LOW LL_GPIO_ResetOutputPin(SDCARD_CS_GPIO_Port, SDCARD_CS_Pin);
+
+uint8_t spiTransfer(volatile uint8_t data);
+void sendcommandanddummy(volatile uint8_t command, volatile int arguments, volatile uint8_t numberofresponse);
+/*-----------------------------------------------------------------------*/
+/* Get Drive Status                                                      */
+/*-----------------------------------------------------------------------*/
+
+uint8_t spiTransfer(volatile uint8_t data){
+	SPI2->DR = data; // Write data into the data register
+	//while( (SPI2->SR & (1<<1)) == 0){} // Wait until the TXE register is empty
+	while( (SPI2->SR & (1<<0)) == 0);
+	//while( (SPI2->SR & (1<<7)) != 0){}
+	return SPI2->DR;
+
+//	LL_SPI_TransmitData8(SPI2, data);
+//	while(LL_SPI_IsActiveFlag_RXNE(SPI2) == 0);
+//	while( (SPI2->SR & (1<<0)) == 0);
+//	return LL_SPI_ReceiveData8(SPI2);
+}
+
+void sendcommandanddummy(uint8_t command, int arguments, uint8_t numberofresponse){
+	uint8_t datatosend[6];
+
+	//Dummy Clock
+	//spiTransfer(0xFF);
+
+	datatosend[0] = 0x40 | command;
+	for(int i=0;i<4;i++){
+		datatosend[4-i] = ( arguments & ( 0xFF<<(i*8) ) ) >> (i*8);
+	}
+	datatosend[5] = crcvalue; //Suppose to be CRC check, but this software is not using it
+
+	for(uint8_t i=0;i<6;i++){
+		spiTransfer( datatosend[i]); // Write data into the data register
+	}
+
+	//Dummy Clock
+	spiTransfer(0xFF);
+	for(int i=0;i<numberofresponse;i++){
+		returneddata[i] = spiTransfer(0xFF);
+	}
+}
+
+
+DSTATUS disk_status (
+	BYTE pdrv		/* Physical drive nmuber to identify the drive */
+)
+{
+	return 0;
+}
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Inidialize a Drive                                                    */
+/*-----------------------------------------------------------------------*/
+
+DSTATUS disk_initialize (
+	BYTE pdrv				/* Physical drive number to identify the drive */
+)
+{
+	SPI2->CR1 &= ~(0b111<<3); // Set baud rate to MAX4
+	SPI2->CR1 |= (0b110<<3); // Set baud rate to 250Khz (to start up the SD card)
+	//Pulse the SD card 74+ time to wake it up
+	SS_HIGH //SS pin HIGH
+
+	for(uint8_t i=0;i<20;i++){ //Keep clocking the SD card until it wakes up
+		spiTransfer(0xFF);
+	}
+	//Send CMD0 to reset the SDcard
+	crcvalue = 0x95;
+	SS_LOW //SS pin LOW
+	sendcommandanddummy(0, 0, 1);
+	if(returneddata[0] != 1){
+	  uint8_t temp;
+	  for(int i=0;i<20;i++){
+	    temp = spiTransfer(0xFF);
+	    if(temp == 0x01){break;}
+	  }
+	  return 0;
+	}
+	while( (SPI2->SR & (1<<7)) != 0){} //Wait until bus is cleared
+	SS_HIGH //SS pin HIGH
+
+//	if(returneddata[0] != 0x01){
+//	  return 0;
+//	}
+
+	//Send CMD8
+	crcvalue = 0x87;
+	SS_LOW //SS pin LOW
+	sendcommandanddummy(8, 0x1AA, 5);
+	while( (SPI2->SR & (1<<7)) != 0){} //Wait until bus is cleared
+	SS_HIGH //SS pin HIGH
+
+	crcvalue = 0x01;
+	//Send ACMD41 (So CMD55 + CMD41) and wait until it recieves 0x00
+	SS_LOW //SS pin LOW
+	sendcommandanddummy(55, 0, 1);
+	if(returneddata[0] == 0x05){
+	    sendcommandanddummy(1, 0, 1);
+	    while(returneddata[0] != 0x00){
+	      delayMs(20);
+	      sendcommandanddummy(1, 0, 1);
+	      while( (SPI2->SR & (1<<7)) != 0){} //Wait until bus is cleared
+	    }
+  }
+	else{
+	  sendcommandanddummy(41, 0x40000000, 1);
+    while(returneddata[0] != 0x00){
+      delayMs(20);
+      sendcommandanddummy(55, 0, 1);
+      sendcommandanddummy(41, 0x40000000, 1);
+      while( (SPI2->SR & (1<<7)) != 0){} //Wait until bus is cleared
+    }
+	}
+	crcvalue = 0xFF;
+	sendcommandanddummy(16,512,1); //Set blocks to 512 bytes
+
+	while( (SPI2->SR & (1<<7)) != 0){} //Wait until bus is cleared
+	SS_HIGH //SS pin HIGH
+	//SPI2->CR1 &= ~(0b111<<3); // Set baud rate to MAX4
+	return 0;
+}
+
+//DMA1-CHANNEL4 = SPI2_RX
+//DMA1-CHANNEL5 = SPI2_TX
+
+/*-----------------------------------------------------------------------*/
+/* Read Sector(s)                                                        */
+/*-----------------------------------------------------------------------*/
+
+DRESULT disk_read (
+	BYTE pdrv,		/* Physical drive nmuber to identify the drive */
+	BYTE *buff,		/* Data buffer to store read data */
+	DWORD sector,	/* Start sector in LBA */
+	UINT count		/* Number of sectors to read */
+)
+{
+	SS_LOW
+
+ //sendcommandanddummy(23,count,1);
+
+	sendcommandanddummy(18,sector,1);
+	//Dummy Clock
+	//spiTransfer(0xFF);
+	//SPI2->DR = 0xFF;
+
+	for(volatile int j=0;j<count;j++){
+
+		while( spiTransfer(0xFF) != 0xFE); //Wait until data token is recieved
+
+		LL_SPI_Disable(SPI2);
+
+		LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_4, buff+(512U*j));
+		LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_4, 512);
+		LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_4);
+
+		LL_SPI_Enable(SPI2);
+
+		for(int i=0;i<512;i++){
+			SPI2->DR = 0xFF; // Write data into the data register
+			while( (SPI2->SR & (1<<1)) == 0); // Wait until the TXE register is empty
+		}
+		while(1){		// Check if DMA is still doing thing from last request
+			if(LL_DMA_IsActiveFlag_TC4(DMA1) != 0){
+				LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_4);
+				LL_DMA_ClearFlag_TC4(DMA1);
+				break;
+			}
+		}
+		//while( (SPI2->SR & (1<<7)) != 0);
+		//To get CRC, which we will not use...for now
+		for(int i=0;i<2;i++){
+			spiTransfer(0xFF);
+		}
+	}
+	sendcommandanddummy(12,sector,0); // Stop the multiple block read
+	while( spiTransfer(0xFF) == 0x00 ){} //Wait until data token is recieved
+	while( (SPI2->SR & (1<<7)) != 0){} //Wait until bus is cleared
+	SS_HIGH
+	return 0;
+}
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Write Sector(s)                                                       */
+/*-----------------------------------------------------------------------*/
+
+#if FF_FS_READONLY == 0
+
+DRESULT disk_write (
+	BYTE pdrv,			/* Physical drive nmuber to identify the drive */
+	const BYTE *buff,	/* Data to be written */
+	DWORD sector,		/* Start sector in LBA */
+	UINT count			/* Number of sectors to write */
+)
+{
+	DRESULT res;
+	int result;
+
+	switch (pdrv) {
+	case DEV_RAM :
+		// translate the arguments here
+
+		result = RAM_disk_write(buff, sector, count);
+
+		// translate the reslut code here
+
+		return res;
+
+	case DEV_MMC :
+		// translate the arguments here
+
+		result = MMC_disk_write(buff, sector, count);
+
+		// translate the reslut code here
+
+		return res;
+
+	case DEV_USB :
+		// translate the arguments here
+
+		result = USB_disk_write(buff, sector, count);
+
+		// translate the reslut code here
+
+		return res;
+	}
+
+	return RES_PARERR;
+}
+
+#endif
+
+
+/*-----------------------------------------------------------------------*/
+/* Miscellaneous Functions                                               */
+/*-----------------------------------------------------------------------*/
+
+DRESULT disk_ioctl (
+	BYTE pdrv,		/* Physical drive nmuber (0..) */
+	BYTE cmd,		/* Control code */
+	void *buff		/* Buffer to send/receive control data */
+)
+{
+
+	return 0;
+}
+
