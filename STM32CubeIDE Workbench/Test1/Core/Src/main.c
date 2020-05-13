@@ -63,76 +63,7 @@ static void MX_TIM3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-//void sendFramesandWait(){
-//  FRESULT res;
-//  unsigned int f_size = 0;
-//
-//  LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_7);
-//  LL_TIM_EnableCounter(TIM4);
-//  while(1){
-//    video_bufferCount++;
-//    if(video_bufferCount == VID_NUMB_BUFFER){
-//      video_bufferCount = 0;
-//    }
-//    int* d_d = &vid_buffer[video_bufferCount];
-//
-//    res = f_read(&vid_fil,d_d,VID_BUFFER_SIZE,&f_size); // Read part of file
-//    if(res != FR_OK){   // If not read correctly, return
-//      return;
-//    }
-//    if(f_size == 0){  // If the size returned is 0, break so the DMA doens't have 0 bytes to send (which results in a bug what the done ISR never gets set to 1)
-//      return;
-//    }
-//
-//    vid_number_of_send = f_size/2;
-//
-//    dma_done = 0;
-//    timer3_trigger = 0;
-//
-//    OLED_Driver_CUSTOM_RAM_Address(OLED_Y_MIN, OLED_Y_MAX, 0, 127);
-//    OLED_Driver_Write_Command(0x5C);
-//    OLED_DC_1;
-//
-//    LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, d_d);
-//    LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, f_size);
-//    LL_DMA_EnableIT_TC(DMA1, LL_DMA_CHANNEL_3);
-//    LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
-//
-//    LL_TIM_EnableCounter(TIM3);
-//
-//    NVIC_EnableIRQ(DMA1_Channel7_IRQn);
-//
-//
-//    while(1){
-//      if(dma_done && timer3_trigger){
-//        break;
-//      }
-//    }
-//
-//    // Check if DMA is still doing thing from last request
-//    while(1){
-//      if((LL_DMA_IsActiveFlag_TC3(DMA1) != 0)){
-//        break;
-//      }
-//    }
-//
-//    OLED_CS_1;
-//
-//    LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
-//
-//    LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_3);
-//    LL_DMA_ClearFlag_TC3(DMA1);
-//
-//
-//    //LL_TIM_DisableCounter(TIM4);
-//    //LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_7);
-//    //LL_DMA_ClearFlag_TC7(DMA1);
-//    //LL_DMA_ClearFlag_HT7(DMA1);
-//    //LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_7);
-//    //LL_DMA_DisableIT_HT(DMA1, LL_DMA_CHANNEL_7);
-//    NVIC_DisableIRQ(DMA1_Channel7_IRQn);
-//  }
-//}
+
 /* USER CODE END 0 */
 
 /**
@@ -149,7 +80,6 @@ int main(void)
 	 * Timer 4 is for audio update interupt
 	 */
   /* USER CODE END 1 */
-  
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -206,11 +136,14 @@ int main(void)
 
   // Video Timer 3 and DMA stuff
   LL_TIM_ClearFlag_UPDATE(TIM3);
-  LL_TIM_EnableIT_UPDATE(TIM3);
   LL_SPI_EnableDMAReq_TX(SPI1);
+
   LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_3, &SPI1->DR);
-  LL_DMA_ClearFlag_TC3(DMA1);
+  LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, &vid_buffer[0]);
+  LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, VID_HALF_BUFFER_SIZE);
   LL_DMA_EnableIT_TC(DMA1, LL_DMA_CHANNEL_3);
+  LL_DMA_EnableIT_HT(DMA1, LL_DMA_CHANNEL_3);
+
   LL_SPI_Enable(SPI1);
   OLED_Driver_Device_Init();
 
@@ -218,14 +151,16 @@ int main(void)
   LL_SPI_DisableDMAReq_RX(SPI2);
   LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_4, &SPI2->DR);
   LL_SPI_Enable(SPI2);
+
   // Start FATFS file handler
   FRESULT res = f_mount(&fatfs_handler, "", 1);
   if(res != FR_OK) {
   	return 1;
   }
   delayMs(100);
+
   // Create the audio file handler
-  res = f_open(&audio_fil, "music1.wav", FA_READ);
+  res = f_open(&audio_fil, MUSIC_FILE_NAME, FA_READ);
   if (res != FR_OK) {
     return 1;
   }
@@ -237,24 +172,27 @@ int main(void)
   }
   // Fill up the buffer with data, so when the DMA1-7 interrupt initially triggers for half-full, it could fill
   // up the first half when its done with it
-  music_bufferCount = 0;
+  music_bufferCount = 1;
   res = f_read(&audio_fil,musicBuffer,MUSIC_BUFFER_SIZE,&f_size);
+  if (res != FR_OK) {
+	return 1;
+	}
 
-  res = f_open(&vid_fil, "video1.hex", FA_READ);
+
+  res = f_open(&vid_fil, VIDEO_FILE_NAME, FA_READ);
   if (res != FR_OK) {
     return 1;
   }
-  for(int i=0;i<VID_NUMB_BUFFER;i++){
-    res = f_read(&vid_fil,vid_buffer[i],VID_BUFFER_SIZE,&f_size);
-    if (res != FR_OK) {
-        return 1;
-      }
-  }
-  LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, vid_buffer[0]);
-  LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, f_size);
+	res = f_read(&vid_fil,vid_buffer,VID_BUFFER_SIZE,&f_size);
+	if (res != FR_OK) {
+		return 1;
+	  }
+
   video_bufferCount = 1;
-  vid_number_of_send = f_size/2;
-  timer3_trigger = 0;
+  vid_number_of_send = VID_HALF_BUFFER_SIZE/2;
+
+  end_of_music_file = 0;
+  end_of_video_file = 0;
 
   OLED_Driver_CUSTOM_RAM_Address(OLED_Y_MIN, OLED_Y_MAX, 0, 127);
   OLED_Driver_Write_Command(0x5C);
@@ -266,27 +204,62 @@ int main(void)
   LL_TIM_EnableCounter(TIM1);
 
   // Clear DMA1-7 flags just in case they were set to 1
-  LL_DMA_ClearFlag_TC7(DMA1);
-  LL_DMA_ClearFlag_HT7(DMA1);
-  LL_DMA_ClearFlag_TC3(DMA1);
+  LL_DMA_ClearFlag_TC7(DMA1); LL_DMA_ClearFlag_HT7(DMA1);
+  LL_DMA_ClearFlag_TC3(DMA1); LL_DMA_ClearFlag_HT3(DMA1);
 
   // Enable the DMA Channel and start the timer 4 counter
   LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_7);
-  LL_TIM_EnableCounter(TIM4);
-
   LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
   LL_TIM_EnableCounter(TIM3);
+  LL_TIM_EnableCounter(TIM4);
 
   /* USER CODE END 2 */
- 
- 
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-
+  	/* For both music file and video file, it waits until the end_of_file flag from the interrupt
+  	 * is 1. Then, because the interupt read another half buffer before it exited, that means that
+  	 * we still have another half buffer to send, which is why when the end_of_file flag is 1, it
+  	 * let's the DMA continue for the circular audio DMA and restarts the DMA for the 'normal mode'
+  	 * video DMA. It also makes the end_of_file flag a 2. After that, when the end_of_file flag
+  	 * is 2, that means that we sent out everything we needed, thus it's OK now to end the DMA and
+  	 * timers.
+  	 */
+	  if(end_of_music_file > 0){
+		  if(LL_DMA_IsActiveFlag_TC7(DMA1) || LL_DMA_IsActiveFlag_HT7(DMA1)){
+		  	LL_DMA_ClearFlag_TC7(DMA1); LL_DMA_ClearFlag_HT7(DMA1);
+			  if(end_of_music_file == 1){
+			  	end_of_music_file = 2;
+			  }
+			  else if(end_of_music_file == 2){
+					LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_7);
+					LL_TIM_DisableCounter(TIM4);
+					LL_TIM_OC_SetCompareCH1(TIM1, 0);
+					LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+					LL_TIM_DisableCounter(TIM1);
+			  }
+		  }
+	  }
+	  if(end_of_video_file > 0){
+	  	if(LL_DMA_IsActiveFlag_TC3(DMA1) || LL_DMA_IsActiveFlag_HT3(DMA1)){
+	  		LL_DMA_ClearFlag_TC3(DMA1); LL_DMA_ClearFlag_HT3(DMA1);
+	  		if(end_of_video_file == 1){
+					LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, &vid_buffer);
+					LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, VID_BUFFER_SIZE);
+					LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
+					end_of_video_file = 2;
+	  		}
+	  		else if(end_of_video_file == 2){
+	  			LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
+					LL_TIM_DisableCounter(TIM3);
+					OLED_CS_1;
+					OLED_Driver_Clear_Screen();
+	  		}
+	  	}
+	  }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -330,7 +303,6 @@ void SystemClock_Config(void)
   
   }
   LL_Init1msTick(72000000);
-  LL_SYSTICK_SetClkSource(LL_SYSTICK_CLKSOURCE_HCLK);
   LL_SetSystemCoreClock(72000000);
 }
 
@@ -595,10 +567,6 @@ static void MX_TIM3_Init(void)
   /* Peripheral clock enable */
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
 
-  /* TIM3 interrupt Init */
-  NVIC_SetPriority(TIM3_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
-  NVIC_EnableIRQ(TIM3_IRQn);
-
   /* USER CODE BEGIN TIM3_Init 1 */
 
   /* USER CODE END TIM3_Init 1 */
@@ -656,7 +624,7 @@ static void MX_TIM4_Init(void)
   /* USER CODE END TIM4_Init 1 */
   TIM_InitStruct.Prescaler = 0;
   TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
-  TIM_InitStruct.Autoreload = 1632;
+  TIM_InitStruct.Autoreload = 1800;
   TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
   LL_TIM_Init(TIM4, &TIM_InitStruct);
   LL_TIM_DisableARRPreload(TIM4);
@@ -736,7 +704,7 @@ static void MX_GPIO_Init(void)
   /**/
   GPIO_InitStruct.Pin = SDCARD_CS_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_MEDIUM;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   LL_GPIO_Init(SDCARD_CS_GPIO_Port, &GPIO_InitStruct);
 

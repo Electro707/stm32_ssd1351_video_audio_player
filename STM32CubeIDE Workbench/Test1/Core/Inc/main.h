@@ -47,9 +47,9 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "delay.h"
 #include "ff.h"
 #include "diskio.h"
+#include "delay.h"
 #include "display.h"
 /* USER CODE END Includes */
 
@@ -60,20 +60,28 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-//#define VID_BUFFER_SIZE 2304
-#define VID_BUFFER_SIZE 1536
-//#define VID_FRAME_SIZE 9216
-#define VID_FRAME_SIZE 12288
-#define VID_NUMB_BUFFER 2
+#define MUSIC_FILE_NAME "music.wav"
+#define VIDEO_FILE_NAME "vid.hex"
+#define VIDEO_RATIO 43
 
-//#define OLED_Y_MIN 27
-//#define OLED_Y_MAX 99
-#define OLED_Y_MIN 15
-#define OLED_Y_MAX 113
+#if VIDEO_RATIO == 169
+	#define VID_BUFFER_SIZE 2304
+	#define VID_HALF_BUFFER_SIZE 1152
+	#define VID_FRAME_SIZE 9216
+	#define OLED_Y_MIN 27
+	#define OLED_Y_MAX 99
+#else
+	#define VID_BUFFER_SIZE 3072
+	#define VID_HALF_BUFFER_SIZE 1536
+	#define VID_FRAME_SIZE 12288
+	#define OLED_Y_MIN 15
+	#define OLED_Y_MAX 113
+#endif
 
 #define MUSIC_BUFFER_SIZE 4096
 #define MUSIC_NUMB_BUFFER 2
 #define MUSIC_HALF_BUFFER_SIZE 2048
+#define VID_NUMB_BUFFER 2
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -89,12 +97,14 @@ char filename[50];
 FATFS fatfs_handler;
 FIL vid_fil;        // File object
 FIL audio_fil;        // File object
-uint8_t vid_buffer[VID_NUMB_BUFFER][VID_BUFFER_SIZE];    // Buffer
+uint8_t vid_buffer[VID_BUFFER_SIZE];    // Buffer
 uint8_t musicBuffer[MUSIC_BUFFER_SIZE];
 int music_bufferCount;
 int video_bufferCount;
 int vid_number_of_send;
-uint8_t timer3_trigger;
+
+uint8_t end_of_music_file;
+uint8_t end_of_video_file;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

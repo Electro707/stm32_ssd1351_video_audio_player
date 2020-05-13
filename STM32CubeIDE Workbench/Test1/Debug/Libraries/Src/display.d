@@ -18,8 +18,8 @@ Libraries/Src/display.o: ../Libraries/Src/display.c \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_spi.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_tim.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_gpio.h \
- ../Libraries/Inc/delay.h ../Libraries/Inc/ff.h ../Libraries/Inc/ffconf.h \
- ../Libraries/Inc/diskio.h
+ ../Libraries/Inc/ff.h ../Libraries/Inc/ffconf.h \
+ ../Libraries/Inc/diskio.h ../Libraries/Inc/delay.h
 
 ../Libraries/Inc/display.h:
 
@@ -61,10 +61,10 @@ Libraries/Src/display.o: ../Libraries/Src/display.c \
 
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_gpio.h:
 
-../Libraries/Inc/delay.h:
-
 ../Libraries/Inc/ff.h:
 
 ../Libraries/Inc/ffconf.h:
 
 ../Libraries/Inc/diskio.h:
+
+../Libraries/Inc/delay.h:

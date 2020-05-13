@@ -203,51 +203,61 @@ void SysTick_Handler(void)
 void DMA1_Channel3_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Channel3_IRQn 0 */
-  LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
-  LL_DMA_ClearFlag_TC3(DMA1);
+	// Clear both the half and full transfer flags, at it can be both that activated this buffer
+	LL_DMA_ClearFlag_TC3(DMA1);
+	LL_DMA_ClearFlag_HT3(DMA1);
+	// If the number if pixels sent is greater or equal to the frame's number of pixels, that
+	// means it's time to wait for the sync timer and update the OLED.
+	if(vid_number_of_send >= VID_FRAME_SIZE){
+		OLED_CS_1; // End communication to the OLED display
+		while(LL_TIM_IsActiveFlag_UPDATE(TIM3) == 0x00); // Wait until the sync timer is done
+		// Reset the timer and restart it
+		LL_TIM_DisableCounter(TIM3);
+		LL_TIM_ClearFlag_UPDATE(TIM3);
+		LL_TIM_SetCounter(TIM3, 0);
+		LL_TIM_EnableCounter(TIM3);
 
-  if(vid_number_of_send >= VID_FRAME_SIZE){
-      OLED_CS_1;
+		vid_number_of_send = 0; // Reset the number of pixels sent to 0
+		// Restart a new OLED write command
+		OLED_Driver_CUSTOM_RAM_Address(OLED_Y_MIN, OLED_Y_MAX, 0, 127);
+		OLED_Driver_Write_Command(0x5C);
+		OLED_DC_1;
+	}
+	// Disable the DMA, update it with the new array's address and size, then enable it
+	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
+	LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, &vid_buffer[video_bufferCount*VID_HALF_BUFFER_SIZE]);
+	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, VID_HALF_BUFFER_SIZE);
+	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
+	// Increment the buffer count variable. If it's equal to the total allocations (2), then set it to 0
+	video_bufferCount++;
+	if(video_bufferCount == VID_NUMB_BUFFER){
+		video_bufferCount = 0;
+	}
+	// Add to the number of pixels sent what is to be sent out by the DMA (each pixel contains 2 byte)
+	vid_number_of_send += VID_HALF_BUFFER_SIZE/2;
 
-      while(timer3_trigger == 0);
-      timer3_trigger = 0;
-      LL_TIM_EnableCounter(TIM3);
-      vid_number_of_send = 0;
-
-      OLED_Driver_CUSTOM_RAM_Address(OLED_Y_MIN, OLED_Y_MAX, 0, 127);
-      OLED_Driver_Write_Command(0x5C);
-      OLED_DC_1;
-    }
-
-  LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, vid_buffer[video_bufferCount]);
-  //LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, f_size);
-  LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, VID_BUFFER_SIZE);
-  LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
-
-  vid_number_of_send += VID_BUFFER_SIZE/2;
-
-  video_bufferCount++;
-  if(video_bufferCount == VID_NUMB_BUFFER){
-    video_bufferCount = 0;
-  }
-
-  unsigned int f_size = 0;    // Placeholder for size of array
-  NVIC_DisableIRQ(DMA1_Channel7_IRQn);
-  FRESULT res = f_read(&vid_fil,vid_buffer[video_bufferCount],VID_BUFFER_SIZE,&f_size); // Read part of file
-  NVIC_EnableIRQ(DMA1_Channel7_IRQn);
-  if(res != FR_OK){   // If not read correctly, return
-    LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_3);
-    return;
-  }
-  if(f_size == 0){  // If the size returned is 0, break so the DMA doens't have 0 bytes to send (which results in a bug what the done ISR never gets set to 1)
-    LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_3);
-    return;
-  }
-
-  if(f_size != VID_BUFFER_SIZE){
-    LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_3);
-    return;
-  }
+	unsigned int f_size = 0;    // Placeholder for size of array written by FatFs
+	// Disable channel 7's interupt to prevent both this and that interupt trying to read from FatFs at the
+	// same time, read the data, then re-enable the interupt
+	NVIC_DisableIRQ(DMA1_Channel7_IRQn);
+	FRESULT res = f_read(&vid_fil,&vid_buffer[video_bufferCount*VID_HALF_BUFFER_SIZE],VID_HALF_BUFFER_SIZE,&f_size); // Read part of file
+	NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+	// If the file didn't read currently, just exit while turning off all interupts
+	if(res != FR_OK){
+		LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
+		LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_3);
+		LL_DMA_DisableIT_HT(DMA1, LL_DMA_CHANNEL_3);
+		return;
+	}
+	// If the FatFs written size is not what we expect or 0, that means it's the end of file
+	if(f_size == 0 || f_size != VID_HALF_BUFFER_SIZE){
+		end_of_video_file = 1;
+		LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
+		LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_3);
+		LL_DMA_DisableIT_HT(DMA1, LL_DMA_CHANNEL_3);
+		LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
+		return;
+	}
 
   /* USER CODE END DMA1_Channel3_IRQn 0 */
   
@@ -262,27 +272,33 @@ void DMA1_Channel3_IRQHandler(void)
 void DMA1_Channel7_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Channel7_IRQn 0 */
+	// Clear both the half and full transfer flags, at it can be both that activated this buffer
   LL_DMA_ClearFlag_TC7(DMA1);
   LL_DMA_ClearFlag_HT7(DMA1);
-  int* d_d = &musicBuffer[music_bufferCount*MUSIC_HALF_BUFFER_SIZE];
+  // Increment the buffer count variable. If it's equal to the total allocations (2), then set it to 0
   music_bufferCount++;
-  if(music_bufferCount == MUSIC_NUMB_BUFFER){
-    music_bufferCount = 0;
-  }
+	if(music_bufferCount == MUSIC_NUMB_BUFFER){
+		music_bufferCount = 0;
+	}
 
-  unsigned int f_size = 0;    // Placeholder for size of array
-  FRESULT res = f_read(&audio_fil,d_d,MUSIC_HALF_BUFFER_SIZE,&f_size);  // Read part of file
-  if(res != FR_OK){   // If not read correctly, return
+  unsigned int f_size = 0;    // Placeholder for size of array written by FatFs
+  // Read and fill part of the audio buffer
+  FRESULT res = f_read(&audio_fil,&musicBuffer[music_bufferCount*MUSIC_HALF_BUFFER_SIZE],MUSIC_HALF_BUFFER_SIZE,&f_size);
+  // If the file didn't read currently, just exit while turning off all interupts
+  if(res != FR_OK){
+  	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_7);
     LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_7);
+    LL_DMA_DisableIT_HT(DMA1, LL_DMA_CHANNEL_7);
     return;
   }
-  if(f_size == 0){  // If the size returned is 0, break so the DMA doens't have 0 bytes to send (which results in a bug what the done ISR never gets set to 1)
+  // If the FatFs written size is not what we expect or 0, that means it's the end of file
+  if(f_size == 0 || f_size != MUSIC_HALF_BUFFER_SIZE){
+    end_of_music_file = 1;
+    LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_7);
+    LL_DMA_SetMode(DMA1, LL_DMA_CHANNEL_7, LL_DMA_MODE_NORMAL);
     LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_7);
-    return;
-  }
-
-  if(f_size != MUSIC_HALF_BUFFER_SIZE){
-    LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_7);
+    LL_DMA_DisableIT_HT(DMA1, LL_DMA_CHANNEL_7);
+    LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_7);
     return;
   }
   /* USER CODE END DMA1_Channel7_IRQn 0 */
@@ -290,22 +306,6 @@ void DMA1_Channel7_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel7_IRQn 1 */
 
   /* USER CODE END DMA1_Channel7_IRQn 1 */
-}
-
-/**
-  * @brief This function handles TIM3 global interrupt.
-  */
-void TIM3_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM3_IRQn 0 */
-  LL_TIM_DisableCounter(TIM3);
-  LL_TIM_ClearFlag_UPDATE(TIM3);
-  LL_TIM_SetCounter(TIM3, 0);
-  timer3_trigger = 1;
-  /* USER CODE END TIM3_IRQn 0 */
-  /* USER CODE BEGIN TIM3_IRQn 1 */
-
-  /* USER CODE END TIM3_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
