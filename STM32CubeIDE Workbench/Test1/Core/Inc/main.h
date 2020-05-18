@@ -104,7 +104,9 @@ int video_bufferCount;
 int vid_number_of_send;
 
 uint8_t end_of_music_file;
+int last_music_file_size;
 uint8_t end_of_video_file;
+int last_video_file_size;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

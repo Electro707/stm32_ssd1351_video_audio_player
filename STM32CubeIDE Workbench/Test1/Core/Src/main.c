@@ -193,6 +193,8 @@ int main(void)
 
   end_of_music_file = 0;
   end_of_video_file = 0;
+  last_music_file_size = 0;
+  last_video_file_size = 0;
 
   OLED_Driver_CUSTOM_RAM_Address(OLED_Y_MIN, OLED_Y_MAX, 0, 127);
   OLED_Driver_Write_Command(0x5C);
@@ -232,6 +234,10 @@ int main(void)
 		  if(LL_DMA_IsActiveFlag_TC7(DMA1) || LL_DMA_IsActiveFlag_HT7(DMA1)){
 		  	LL_DMA_ClearFlag_TC7(DMA1); LL_DMA_ClearFlag_HT7(DMA1);
 			  if(end_of_music_file == 1){
+			  	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_7);
+			  	LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_7, &musicBuffer[music_bufferCount*MUSIC_HALF_BUFFER_SIZE]);
+			  	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_7, last_music_file_size);
+			  	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_7);
 			  	end_of_music_file = 2;
 			  }
 			  else if(end_of_music_file == 2){
@@ -247,8 +253,9 @@ int main(void)
 	  	if(LL_DMA_IsActiveFlag_TC3(DMA1) || LL_DMA_IsActiveFlag_HT3(DMA1)){
 	  		LL_DMA_ClearFlag_TC3(DMA1); LL_DMA_ClearFlag_HT3(DMA1);
 	  		if(end_of_video_file == 1){
-					LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, &vid_buffer);
-					LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, VID_BUFFER_SIZE);
+	  			LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
+					LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, &vid_buffer[video_bufferCount*VID_HALF_BUFFER_SIZE]);
+					LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, last_video_file_size);
 					LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
 					end_of_video_file = 2;
 	  		}

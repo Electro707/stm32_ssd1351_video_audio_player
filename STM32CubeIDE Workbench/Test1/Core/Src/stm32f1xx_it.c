@@ -252,6 +252,7 @@ void DMA1_Channel3_IRQHandler(void)
 	// If the FatFs written size is not what we expect or 0, that means it's the end of file
 	if(f_size == 0 || f_size != VID_HALF_BUFFER_SIZE){
 		end_of_video_file = 1;
+		last_video_file_size = f_size;
 		LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
 		LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_3);
 		LL_DMA_DisableIT_HT(DMA1, LL_DMA_CHANNEL_3);
@@ -294,6 +295,7 @@ void DMA1_Channel7_IRQHandler(void)
   // If the FatFs written size is not what we expect or 0, that means it's the end of file
   if(f_size == 0 || f_size != MUSIC_HALF_BUFFER_SIZE){
     end_of_music_file = 1;
+    last_music_file_size = f_size;
     LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_7);
     LL_DMA_SetMode(DMA1, LL_DMA_CHANNEL_7, LL_DMA_MODE_NORMAL);
     LL_DMA_DisableIT_TC(DMA1, LL_DMA_CHANNEL_7);

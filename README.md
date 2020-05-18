@@ -5,7 +5,7 @@ This is the repository for an STM32F103C8T6 (commonly found on "blue-pill" modul
 The IDE used for the STM32 is the official STM32CubeIDE (found on ST's site)
 
 
-Currently, this project is not too well-documented, but I'm working on getting the code refined/generalized and documented. Feel free to look around tough (hopefully the code makes a bit of sense). I have also put the current documentation in the [Documentation/text.txt](Documentation/text.txt) file. It's just a plain text file with a description of what each part of the program does.
+Currently, this project is not too well-documented, but I'm working on getting the code refined/generalized and documented. Feel free to look around tough (hopefully the code makes a bit of sense). I have also put the current documentation in the [Documentation/text.md](Documentation/text.md) file. It's just a plain text file with a description of what each part of the program does.
 
 
 As a fun fact: In theory, altough i've never tried it, this player could play the entire Bee movie, altough the video file size could be an issue (the video is stored as a .hex file with 2 bytes per pixel per frame of the video).

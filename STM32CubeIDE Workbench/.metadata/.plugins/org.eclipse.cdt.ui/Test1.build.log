@@ -1,10 +1,87 @@
-03:25:48 **** Incremental Build of configuration Debug for project Test1 ****
+01:47:52 **** Incremental Build of configuration Debug for project Test1 ****
 make -j4 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m3 -std=gnu11 -g3 '-DVDD_VALUE=3300' '-DHSE_VALUE=8000000' '-DLSI_VALUE=40000' -DSTM32F103xB '-DHSI_VALUE=8000000' '-DHSE_STARTUP_TIMEOUT=100' -DUSE_FULL_LL_DRIVER '-DLSE_STARTUP_TIMEOUT=5000' -DDEBUG '-DLSE_VALUE=32768' '-DPREFETCH_ENABLE=1' -c -I../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/STM32F1xx_HAL_Driver/Inc -I../Libraries/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfloat-abi=soft -mthumb -o "Core/Src/main.o"
+arm-none-eabi-gcc "../Core/Src/stm32f1xx_it.c" -mcpu=cortex-m3 -std=gnu11 -g3 '-DVDD_VALUE=3300' '-DHSE_VALUE=8000000' '-DLSI_VALUE=40000' -DSTM32F103xB '-DHSI_VALUE=8000000' '-DHSE_STARTUP_TIMEOUT=100' -DUSE_FULL_LL_DRIVER '-DLSE_STARTUP_TIMEOUT=5000' -DDEBUG '-DLSE_VALUE=32768' '-DPREFETCH_ENABLE=1' -c -I../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/STM32F1xx_HAL_Driver/Inc -I../Libraries/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Core/Src/stm32f1xx_it.d" -MT"Core/Src/stm32f1xx_it.o" --specs=nano.specs -mfloat-abi=soft -mthumb -o "Core/Src/stm32f1xx_it.o"
+../Core/Src/main.c: In function 'main':
+../Core/Src/main.c:129:51: warning: passing argument 3 of 'LL_DMA_SetPeriphAddress' makes integer from pointer without a cast [-Wint-conversion]
+   LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_7, &TIM1->CCR1);
+                                                   ^
+In file included from ../Core/Inc/main.h:31:0,
+                 from ../Core/Src/main.c:22:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_dma.h:987:22: note: expected 'uint32_t {aka long unsigned int}' but argument is of type 'volatile uint32_t * {aka volatile long unsigned int *}'
+ __STATIC_INLINE void LL_DMA_SetPeriphAddress(DMA_TypeDef *DMAx, uint32_t Channel, uint32_t PeriphAddress)
+                      ^~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:130:51: warning: passing argument 3 of 'LL_DMA_SetMemoryAddress' makes integer from pointer without a cast [-Wint-conversion]
+   LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_7, &musicBuffer);
+                                                   ^
+In file included from ../Core/Inc/main.h:31:0,
+                 from ../Core/Src/main.c:22:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_dma.h:965:22: note: expected 'uint32_t {aka long unsigned int}' but argument is of type 'uint8_t (*)[4096] {aka unsigned char (*)[4096]}'
+ __STATIC_INLINE void LL_DMA_SetMemoryAddress(DMA_TypeDef *DMAx, uint32_t Channel, uint32_t MemoryAddress)
+                      ^~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:141:51: warning: passing argument 3 of 'LL_DMA_SetPeriphAddress' makes integer from pointer without a cast [-Wint-conversion]
+   LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_3, &SPI1->DR);
+                                                   ^
+In file included from ../Core/Inc/main.h:31:0,
+                 from ../Core/Src/main.c:22:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_dma.h:987:22: note: expected 'uint32_t {aka long unsigned int}' but argument is of type 'volatile uint32_t * {aka volatile long unsigned int *}'
+ __STATIC_INLINE void LL_DMA_SetPeriphAddress(DMA_TypeDef *DMAx, uint32_t Channel, uint32_t PeriphAddress)
+                      ^~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:142:51: warning: passing argument 3 of 'LL_DMA_SetMemoryAddress' makes integer from pointer without a cast [-Wint-conversion]
+   LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, &vid_buffer[0]);
+                                                   ^
+In file included from ../Core/Inc/main.h:31:0,
+                 from ../Core/Src/main.c:22:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_dma.h:965:22: note: expected 'uint32_t {aka long unsigned int}' but argument is of type 'uint8_t * {aka unsigned char *}'
+ __STATIC_INLINE void LL_DMA_SetMemoryAddress(DMA_TypeDef *DMAx, uint32_t Channel, uint32_t MemoryAddress)
+                      ^~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:152:51: warning: passing argument 3 of 'LL_DMA_SetPeriphAddress' makes integer from pointer without a cast [-Wint-conversion]
+   LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_4, &SPI2->DR);
+                                                   ^
+In file included from ../Core/Inc/main.h:31:0,
+                 from ../Core/Src/main.c:22:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_dma.h:987:22: note: expected 'uint32_t {aka long unsigned int}' but argument is of type 'volatile uint32_t * {aka volatile long unsigned int *}'
+ __STATIC_INLINE void LL_DMA_SetPeriphAddress(DMA_TypeDef *DMAx, uint32_t Channel, uint32_t PeriphAddress)
+                      ^~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:238:55: warning: passing argument 3 of 'LL_DMA_SetMemoryAddress' makes integer from pointer without a cast [-Wint-conversion]
+       LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_7, &musicBuffer[music_bufferCount*MUSIC_HALF_BUFFER_SIZE]);
+                                                       ^
+In file included from ../Core/Inc/main.h:31:0,
+                 from ../Core/Src/main.c:22:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_dma.h:965:22: note: expected 'uint32_t {aka long unsigned int}' but argument is of type 'uint8_t * {aka unsigned char *}'
+ __STATIC_INLINE void LL_DMA_SetMemoryAddress(DMA_TypeDef *DMAx, uint32_t Channel, uint32_t MemoryAddress)
+                      ^~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:257:54: warning: passing argument 3 of 'LL_DMA_SetMemoryAddress' makes integer from pointer without a cast [-Wint-conversion]
+      LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, &vid_buffer[video_bufferCount*VID_HALF_BUFFER_SIZE]);
+                                                      ^
+In file included from ../Core/Inc/main.h:31:0,
+                 from ../Core/Src/main.c:22:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_dma.h:965:22: note: expected 'uint32_t {aka long unsigned int}' but argument is of type 'uint8_t * {aka unsigned char *}'
+ __STATIC_INLINE void LL_DMA_SetMemoryAddress(DMA_TypeDef *DMAx, uint32_t Channel, uint32_t MemoryAddress)
+                      ^~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/stm32f1xx_it.c: In function 'DMA1_Channel3_IRQHandler':
+../Core/Src/stm32f1xx_it.c:228:50: warning: passing argument 3 of 'LL_DMA_SetMemoryAddress' makes integer from pointer without a cast [-Wint-conversion]
+  LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, &vid_buffer[video_bufferCount*VID_HALF_BUFFER_SIZE]);
+                                                  ^
+In file included from ../Core/Inc/main.h:31:0,
+                 from ../Core/Src/stm32f1xx_it.c:22:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_dma.h:965:22: note: expected 'uint32_t {aka long unsigned int}' but argument is of type 'uint8_t * {aka unsigned char *}'
+ __STATIC_INLINE void LL_DMA_SetMemoryAddress(DMA_TypeDef *DMAx, uint32_t Channel, uint32_t MemoryAddress)
+                      ^~~~~~~~~~~~~~~~~~~~~~~
+arm-none-eabi-gcc -o "Test1.elf" @"objects.list"   -mcpu=cortex-m3 -T"/media/electro/ELECTRO/stm32/STM32_SSD1351+Music/STM32CubeIDE/Test1/STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Test1.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: Test1.elf
+ 
+arm-none-eabi-objdump -h -S  Test1.elf  > "Test1.list"
+arm-none-eabi-objcopy  -O binary  Test1.elf  "Test1.bin"
 arm-none-eabi-size   Test1.elf 
    text	   data	    bss	    dec	    hex	filename
-   9156	     12	  10476	  19644	   4cbc	Test1.elf
+  17624	     12	  10484	  28120	   6dd8	Test1.elf
 Finished building: default.size.stdout
  
+Finished building: Test1.bin
+ 
+Finished building: Test1.list
+ 
 
-03:25:49 Build Finished. 0 errors, 0 warnings. (took 596ms)
+01:47:54 Build Finished. 0 errors, 8 warnings. (took 1s.917ms)
 
